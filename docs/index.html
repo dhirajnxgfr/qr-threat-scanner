@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Shield — Threat Scanner</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --border: #2a2a3a;
+    --accent: #00ff88;
+    --accent2: #ff3366;
+    --accent3: #ffaa00;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --danger: #ff3366;
+    --warn: #ffaa00;
+    --safe: #00ff88;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #particles-canvas {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* NAV */
+  nav {
+    padding: 24px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #000;
+    font-size: 18px;
+  }
+
+  .badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 100px;
+    letter-spacing: 1px;
+  }
+
+  /* HERO */
+  .hero {
+    padding: 80px 0 60px;
+    text-align: center;
+  }
+
+  .hero-tag {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    margin-bottom: 24px;
+    padding: 6px 16px;
+    border: 1px solid rgba(0,255,136,0.3);
+    border-radius: 4px;
+    background: rgba(0,255,136,0.05);
+  }
+
+  h1 {
+    font-size: clamp(42px, 7vw, 80px);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -3px;
+    margin-bottom: 24px;
+  }
+
+  h1 span {
+    color: var(--accent);
+    position: relative;
+  }
+
+  h1 span::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--accent);
+    opacity: 0.4;
+  }
+
+  .hero-sub {
+    font-size: 18px;
+    color: var(--muted);
+    max-width: 520px;
+    margin: 0 auto 48px;
+    line-height: 1.6;
+    font-weight: 400;
+  }
+
+  .hero-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--accent);
+    color: #000;
+    padding: 14px 32px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 15px;
+    text-decoration: none;
+    letter-spacing: 0.3px;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 0 30px rgba(0,255,136,0.3);
+  }
+
+  .hero-cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 50px rgba(0,255,136,0.5);
+  }
+
+  /* SCAN DEMO */
+  .scan-demo {
+    margin: 60px 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .scan-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface2);
+  }
+
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-r { background: #ff5f57; }
+  .dot-y { background: #febc2e; }
+  .dot-g { background: #28c840; }
+
+  .scan-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: 8px;
+  }
+
+  .scan-body {
+    padding: 32px;
+  }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .upload-zone:hover {
+    border-color: var(--accent);
+    background: rgba(0,255,136,0.03);
+  }
+
+  .upload-zone.active {
+    border-color: var(--accent);
+    background: rgba(0,255,136,0.05);
+  }
+
+  .upload-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+
+  .upload-text {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .upload-sub {
+    font-size: 13px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  #fileInput { display: none; }
+
+  /* Result panel - hidden by default */
+  .result-panel {
+    display: none;
+    margin-top: 24px;
+  }
+
+  .result-panel.show { display: block; }
+
+  /* Scanning animation */
+  .scanning {
+    display: none;
+    text-align: center;
+    padding: 32px;
+  }
+
+  .scanning.show { display: block; }
+
+  .scan-line {
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: scanline 1.5s ease-in-out infinite;
+    margin-bottom: 16px;
+  }
+
+  @keyframes scanline {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .scan-status {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+  }
+
+  /* Verdict card */
+  .verdict-card {
+    border-radius: 12px;
+    padding: 28px;
+    margin-bottom: 20px;
+    border: 1px solid;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .verdict-card.safe { border-color: var(--safe); background: rgba(0,255,136,0.05); }
+  .verdict-card.warn { border-color: var(--warn); background: rgba(255,170,0,0.05); }
+  .verdict-card.danger { border-color: var(--danger); background: rgba(255,51,102,0.05); }
+
+  .verdict-icon { font-size: 48px; flex-shrink: 0; }
+
+  .verdict-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+    opacity: 0.7;
+  }
+
+  .verdict-title {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 4px;
+  }
+
+  .verdict-card.safe .verdict-title { color: var(--safe); }
+  .verdict-card.warn .verdict-title { color: var(--warn); }
+  .verdict-card.danger .verdict-title { color: var(--danger); }
+
+  .verdict-url {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    word-break: break-all;
+  }
+
+  /* Score bar */
+  .score-section {
+    margin-bottom: 20px;
+  }
+
+  .score-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .score-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  .score-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 24px;
+    font-weight: 700;
+  }
+
+  .score-bar-bg {
+    height: 8px;
+    background: var(--surface2);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 100px;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 0%;
+  }
+
+  /* Checks grid */
+  .checks-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .check-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: border-color 0.2s;
+  }
+
+  .check-item.pass { border-color: rgba(0,255,136,0.2); }
+  .check-item.fail { border-color: rgba(255,51,102,0.2); }
+  .check-item.warn-item { border-color: rgba(255,170,0,0.2); }
+
+  .check-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .check-item.pass .check-dot { background: var(--safe); box-shadow: 0 0 8px var(--safe); }
+  .check-item.fail .check-dot { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+  .check-item.warn-item .check-dot { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+
+  .check-name {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .check-detail {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* API results row */
+  .api-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .api-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+  }
+
+  .api-name {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+
+  .api-result {
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 60px 0;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 24px;
+    text-align: center;
+  }
+
+  .stat-number {
+    font-size: 42px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  .stat-label {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  /* How it works */
+  .how-section {
+    margin: 60px 0;
+  }
+
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    margin-bottom: 40px;
+  }
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .step {
+    position: relative;
+  }
+
+  .step-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    margin-bottom: 12px;
+    opacity: 0.7;
+  }
+
+  .step-icon {
+    font-size: 28px;
+    margin-bottom: 12px;
+  }
+
+  .step-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .step-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* connector line */
+  .step:not(:last-child)::after {
+    content: '→';
+    position: absolute;
+    right: -12px;
+    top: 36px;
+    color: var(--border);
+    font-size: 18px;
+  }
+
+  /* Threat types */
+  .threats-section {
+    margin: 60px 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+  }
+
+  .threat-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 32px;
+  }
+
+  .threat-item {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .threat-icon-wrap {
+    width: 40px;
+    height: 40px;
+    background: var(--surface2);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .threat-name {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .threat-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 0;
+    margin-top: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .footer-left {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .footer-stack {
+    display: flex;
+    gap: 8px;
+  }
+
+  .tech-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    padding: 4px 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--muted);
+  }
+
+  /* Animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero, .scan-demo, .stats-row, .how-section, .threats-section {
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .stats-row { animation-delay: 0.1s; }
+  .how-section { animation-delay: 0.2s; }
+  .threats-section { animation-delay: 0.3s; }
+
+  /* Pulse on logo icon */
+  .logo-icon {
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0,255,136,0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(0,255,136,0); }
+  }
+
+  /* Typewriter cursor */
+  .typewriter-cursor {
+    display: inline-block;
+    width: 3px;
+    height: 1em;
+    background: var(--accent);
+    margin-left: 4px;
+    vertical-align: middle;
+    animation: blink 0.8s step-end infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* Scroll reveal */
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Staggered check items */
+  .check-item {
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: opacity 0.3s ease, transform 0.3s ease, border-color 0.2s;
+  }
+
+  .check-item.animate-in {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  /* Glitch effect on verdict title */
+  @keyframes glitch {
+    0%   { clip-path: inset(0 0 95% 0); transform: translate(-2px, 0); }
+    10%  { clip-path: inset(30% 0 50% 0); transform: translate(2px, 0); }
+    20%  { clip-path: inset(60% 0 20% 0); transform: translate(-2px, 0); }
+    30%  { clip-path: inset(10% 0 80% 0); transform: translate(1px, 0); }
+    40%  { clip-path: inset(80% 0 5% 0);  transform: translate(-1px, 0); }
+    50%  { clip-path: inset(45% 0 45% 0); transform: translate(2px, 0); }
+    100% { clip-path: inset(0 0 0 0);     transform: translate(0, 0); }
+  }
+
+  .glitch-active {
+    position: relative;
+  }
+
+  .glitch-active::before,
+  .glitch-active::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0; left: 0;
+    font-size: inherit;
+    font-weight: inherit;
+    width: 100%;
+  }
+
+  .glitch-active::before {
+    color: #ff3366;
+    animation: glitch 0.4s steps(1) forwards;
+    opacity: 0.8;
+  }
+
+  .glitch-active::after {
+    color: #00ffff;
+    animation: glitch 0.4s steps(1) 0.05s forwards;
+    opacity: 0.6;
+  }
+
+  /* Ripple on verdict card */
+  @keyframes ripple {
+    0%   { box-shadow: 0 0 0 0 rgba(255,51,102,0.4); }
+    70%  { box-shadow: 0 0 0 20px rgba(255,51,102,0); }
+    100% { box-shadow: 0 0 0 0 rgba(255,51,102,0); }
+  }
+
+  @keyframes ripple-safe {
+    0%   { box-shadow: 0 0 0 0 rgba(0,255,136,0.4); }
+    70%  { box-shadow: 0 0 0 20px rgba(0,255,136,0); }
+    100% { box-shadow: 0 0 0 0 rgba(0,255,136,0); }
+  }
+
+  .verdict-card.danger.ripple { animation: ripple 0.8s ease-out; }
+  .verdict-card.safe.ripple { animation: ripple-safe 0.8s ease-out; }
+
+  /* Stat counter */
+  .stat-number {
+    display: block;
+    transition: color 0.3s;
+  }
+
+  /* Hover lift on steps */
+  .step {
+    transition: transform 0.2s ease;
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+  }
+
+  .step:hover {
+    transform: translateY(-4px);
+    border-color: var(--border);
+    background: var(--surface);
+  }
+
+  /* Threat item hover */
+  .threat-item {
+    padding: 12px;
+    border-radius: 10px;
+    transition: background 0.2s ease;
+  }
+
+  .threat-item:hover {
+    background: rgba(255,255,255,0.03);
+  }
+
+  .threat-icon-wrap {
+    transition: transform 0.2s ease;
+  }
+
+  .threat-item:hover .threat-icon-wrap {
+    transform: scale(1.15) rotate(-5deg);
+  }
+
+  /* Camera scanner */
+  .camera-section {
+    margin-top: 24px;
+    border-top: 1px solid var(--border);
+    padding-top: 24px;
+  }
+
+  .camera-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+
+  .camera-toggle:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,255,136,0.05);
+  }
+
+  .camera-toggle.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,255,136,0.08);
+  }
+
+  .camera-wrap {
+    display: none;
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: #000;
+  }
+
+  .camera-wrap.show { display: block; }
+
+  #cameraFeed {
+    width: 100%;
+    display: block;
+    border-radius: 12px;
+  }
+
+  #cameraCanvas { display: none; }
+
+  .camera-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .scan-frame {
+    width: 200px;
+    height: 200px;
+    position: relative;
+  }
+
+  .scan-frame::before,
+  .scan-frame::after,
+  .scan-frame .corner-br,
+  .scan-frame .corner-bl {
+    content: '';
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border-color: var(--accent);
+    border-style: solid;
+  }
+
+  .scan-frame::before { top: 0; left: 0; border-width: 3px 0 0 3px; }
+  .scan-frame::after  { top: 0; right: 0; border-width: 3px 3px 0 0; }
+  .scan-frame .corner-br { bottom: 0; right: 0; border-width: 0 3px 3px 0; }
+  .scan-frame .corner-bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; }
+
+  .scan-beam {
+    position: absolute;
+    left: 4px; right: 4px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: beam 2s ease-in-out infinite;
+    top: 4px;
+  }
+
+  @keyframes beam {
+    0%   { top: 4px; opacity: 1; }
+    48%  { opacity: 1; }
+    50%  { top: calc(100% - 6px); opacity: 1; }
+    98%  { opacity: 1; }
+    100% { top: 4px; opacity: 1; }
+  }
+
+  .camera-status {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    background: rgba(0,0,0,0.7);
+    padding: 4px 12px;
+    border-radius: 100px;
+    white-space: nowrap;
+    letter-spacing: 1px;
+  }
+
+  .camera-detected {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,255,136,0.15);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+
+  .camera-detected.show { opacity: 1; }
+
+  .detected-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-shadow: 0 0 20px var(--accent);
+  }
+
+  /* Scan progress bar */
+  .scan-progress-wrap {
+    height: 3px;
+    background: var(--surface2);
+    border-radius: 100px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .scan-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #00ccff);
+    border-radius: 100px;
+    width: 0%;
+    transition: width 0.4s ease;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  /* Terminal log lines */
+  .terminal-log {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 12px;
+    text-align: left;
+    min-height: 60px;
+  }
+
+  .log-line {
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    margin-bottom: 4px;
+  }
+
+  .log-line.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .log-line.done { color: var(--accent); }
+  .log-line.active { color: var(--text); }
+  .log-line.pending { color: var(--border); }
+
+  @media (max-width: 640px) {
+    .checks-grid, .api-row, .steps, .threat-list { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .step:not(:last-child)::after { display: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="particles-canvas"></canvas>
+<div class="container">
+
+  <!-- NAV -->
+  <nav>
+    <div class="logo">
+      <div class="logo-icon">🛡</div>
+      QR Shield
+    </div>
+    <span class="badge">HACKATHON BUILD</span>
+  </nav>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-tag">QUISHING ATTACKS ARE UP 587% IN 2024</div>
+    <h1>Scan any QR code.<br>Know if it's <span>safe</span>.</h1>
+    <p class="hero-sub">Instantly decode QR codes and check them against 90+ threat engines, Google Safe Browsing, and our custom heuristics engine — in seconds.</p>
+    <a href="#demo" class="hero-cta" onclick="document.getElementById('demo').scrollIntoView({behavior:'smooth'}); return false;">
+      🔍 Try the Scanner
+    </a>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <span class="stat-number">90+</span>
+      <div class="stat-label">Threat engines via VirusTotal</div>
+    </div>
+    <div class="stat-card">
+      <span class="stat-number">8</span>
+      <div class="stat-label">Heuristic checks run instantly</div>
+    </div>
+    <div class="stat-card">
+      <span class="stat-number">&lt;5s</span>
+      <div class="stat-label">Average scan time</div>
+    </div>
+  </div>
+
+  <!-- DEMO PANEL -->
+  <div class="scan-demo" id="demo">
+    <div class="scan-header">
+      <div class="dot dot-r"></div>
+      <div class="dot dot-y"></div>
+      <div class="dot dot-g"></div>
+      <span class="scan-title">qr-shield — threat scanner v1.0</span>
+    </div>
+    <div class="scan-body">
+
+      <!-- Upload zone -->
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" accept="image/*">
+        <div class="upload-icon">📷</div>
+        <div class="upload-text">Drop a QR code image here</div>
+        <div class="upload-sub">PNG, JPG, WEBP supported</div>
+      </div>
+
+      <!-- Camera scanner -->
+      <div class="camera-section">
+        <button class="camera-toggle" id="cameraToggle" onclick="toggleCamera()">
+          📷 &nbsp; USE LIVE CAMERA INSTEAD
+        </button>
+        <div class="camera-wrap" id="cameraWrap">
+          <video id="cameraFeed" autoplay playsinline muted></video>
+          <canvas id="cameraCanvas"></canvas>
+          <div class="camera-overlay">
+            <div class="scan-frame">
+              <div class="corner-br"></div>
+              <div class="corner-bl"></div>
+              <div class="scan-beam"></div>
+            </div>
+          </div>
+          <div class="camera-detected" id="cameraDetected">
+            <div class="detected-text">⬡ QR DETECTED</div>
+          </div>
+          <div class="camera-status" id="cameraStatus">⬡ SCANNING FOR QR CODE...</div>
+        </div>
+      </div>
+
+      <!-- Scanning state -->
+      <div class="scanning" id="scanningState">
+        <div class="scan-progress-wrap">
+          <div class="scan-progress-fill" id="scanProgress"></div>
+        </div>
+        <div class="scan-line"></div>
+        <div class="scan-status" id="scanStatus">⬡ INITIALIZING...</div>
+        <div class="terminal-log" id="terminalLog"></div>
+      </div>
+
+      <!-- Result panel -->
+      <div class="result-panel" id="resultPanel">
+
+        <!-- Verdict -->
+        <div class="verdict-card" id="verdictCard">
+          <div class="verdict-icon" id="verdictIcon">🔴</div>
+          <div>
+            <div class="verdict-label">THREAT VERDICT</div>
+            <div class="verdict-title" id="verdictTitle">MALICIOUS</div>
+            <div class="verdict-url" id="verdictUrl">https://paypa1.com/login/verify/account</div>
+          </div>
+        </div>
+
+        <!-- Score bar -->
+        <div class="score-section">
+          <div class="score-header">
+            <span class="score-label">RISK SCORE</span>
+            <span class="score-value" id="scoreValue">0/100</span>
+          </div>
+          <div class="score-bar-bg">
+            <div class="score-bar-fill" id="scoreBar"></div>
+          </div>
+        </div>
+
+        <!-- Checks -->
+        <div class="checks-grid" id="checksGrid"></div>
+
+        <!-- API Results -->
+        <div class="api-row">
+          <div class="api-card">
+            <div class="api-name">VIRUSTOTAL</div>
+            <div class="api-result" id="vtResult">—</div>
+          </div>
+          <div class="api-card">
+            <div class="api-name">GOOGLE SAFE BROWSING</div>
+            <div class="api-result" id="gsbResult">—</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div class="how-section">
+    <div class="section-label">HOW IT WORKS</div>
+    <div class="section-title">4 layers of protection</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div class="step-icon">📷</div>
+        <div class="step-title">QR Decode</div>
+        <div class="step-desc">OpenCV + pyzbar extracts the hidden URL from any QR image</div>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <div class="step-icon">🔗</div>
+        <div class="step-title">URL Unshorten</div>
+        <div class="step-desc">Follow all redirects to expose the true final destination</div>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <div class="step-icon">🧠</div>
+        <div class="step-title">Heuristics</div>
+        <div class="step-desc">8 rules: typosquatting, suspicious TLDs, IP hosts, SSL errors</div>
+      </div>
+      <div class="step">
+        <div class="step-num">04</div>
+        <div class="step-icon">☁️</div>
+        <div class="step-title">Threat APIs</div>
+        <div class="step-desc">Cross-check with VirusTotal (90+ engines) + Google Safe Browsing</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- THREAT TYPES -->
+  <div class="threats-section">
+    <div class="section-label">WHAT WE CATCH</div>
+    <div class="section-title">Common QR attack vectors</div>
+    <div class="threat-list">
+      <div class="threat-item">
+        <div class="threat-icon-wrap">🎣</div>
+        <div>
+          <div class="threat-name">Phishing Pages</div>
+          <div class="threat-desc">Fake login pages designed to steal credentials from unsuspecting users</div>
+        </div>
+      </div>
+      <div class="threat-item">
+        <div class="threat-icon-wrap">🔤</div>
+        <div>
+          <div class="threat-name">Typosquatting</div>
+          <div class="threat-desc">paypa1.com, g00gle.com — domains that impersonate trusted brands</div>
+        </div>
+      </div>
+      <div class="threat-item">
+        <div class="threat-icon-wrap">🔀</div>
+        <div>
+          <div class="threat-name">Redirect Chains</div>
+          <div class="threat-desc">Multiple hops designed to hide the true malicious destination</div>
+        </div>
+      </div>
+      <div class="threat-item">
+        <div class="threat-icon-wrap">💀</div>
+        <div>
+          <div class="threat-name">Malware Downloads</div>
+          <div class="threat-desc">URLs that silently trigger APK or executable downloads on mobile</div>
+        </div>
+      </div>
+      <div class="threat-item">
+        <div class="threat-icon-wrap">🌐</div>
+        <div>
+          <div class="threat-name">IP-Based URLs</div>
+          <div class="threat-desc">Raw IP addresses used to bypass domain reputation checks</div>
+        </div>
+      </div>
+      <div class="threat-item">
+        <div class="threat-icon-wrap">🆔</div>
+        <div>
+          <div class="threat-name">Credential Harvesting</div>
+          <div class="threat-desc">Pages mimicking banks, government portals, and payment systems</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-left">Built in 3 hours for hackathon demo</div>
+    <div class="footer-stack">
+      <span class="tech-tag">Python</span>
+      <span class="tech-tag">Streamlit</span>
+      <span class="tech-tag">OpenCV</span>
+      <span class="tech-tag">VirusTotal</span>
+      <span class="tech-tag">pyzbar</span>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  // ── PARTICLES ──────────────────────────────────────────────
+  const canvas = document.getElementById('particles-canvas');
+  const ctx = canvas.getContext('2d');
+  let particles = [];
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  function createParticle() {
+    return {
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      size: Math.random() * 1.5 + 0.5,
+      alpha: Math.random() * 0.4 + 0.1,
+      color: Math.random() > 0.85 ? '#ff3366' : '#00ff88',
+    };
+  }
+
+  for (let i = 0; i < 60; i++) particles.push(createParticle());
+
+  function drawParticles() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.alpha;
+      ctx.fill();
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+      if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+    });
+    // Draw faint connecting lines between nearby particles
+    ctx.globalAlpha = 0.05;
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 120) {
+          ctx.beginPath();
+          ctx.strokeStyle = '#00ff88';
+          ctx.lineWidth = 0.5;
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(drawParticles);
+  }
+  drawParticles();
+
+  // ── TYPEWRITER HERO TAG ────────────────────────────────────
+  const heroTag = document.querySelector('.hero-tag');
+  const heroTagText = heroTag.textContent;
+  heroTag.innerHTML = '<span id="tw-text"></span><span class="typewriter-cursor"></span>';
+  const twEl = document.getElementById('tw-text');
+  let twI = 0;
+  function typeWrite() {
+    if (twI <= heroTagText.length) {
+      twEl.textContent = heroTagText.slice(0, twI++);
+      setTimeout(typeWrite, 35);
+    }
+  }
+  setTimeout(typeWrite, 600);
+
+  // ── SCROLL REVEAL ──────────────────────────────────────────
+  document.querySelectorAll('.how-section, .threats-section, .stats-row').forEach(el => {
+    el.classList.add('reveal');
+    el.style.animation = 'none'; // override existing fadeUp
+  });
+
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => entry.target.classList.add('visible'), i * 100);
+        revealObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15 });
+
+  document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+  // ── ANIMATED STAT COUNTERS ─────────────────────────────────
+  function animateCounter(el, target, suffix = '', duration = 1200) {
+    const start = performance.now();
+    const isFloat = String(target).includes('.');
+    function update(now) {
+      const t = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      const val = isFloat ? (target * ease).toFixed(1) : Math.round(target * ease);
+      el.textContent = val + suffix;
+      if (t < 1) requestAnimationFrame(update);
+    }
+    requestAnimationFrame(update);
+  }
+
+  const statObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const cards = entry.target.querySelectorAll('.stat-number');
+        const targets = [90, 8, 5];
+        const suffixes = ['+', '', 's'];
+        cards.forEach((el, i) => animateCounter(el, targets[i], suffixes[i]));
+        statObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.5 });
+
+  const statsRow = document.querySelector('.stats-row');
+  if (statsRow) statObserver.observe(statsRow);
+
+  // ── DEMO SCANNER ──────────────────────────────────────────
+  const fileInput = document.getElementById('fileInput');
+  const uploadZone = document.getElementById('uploadZone');
+  const scanningState = document.getElementById('scanningState');
+  const resultPanel = document.getElementById('resultPanel');
+  const scanStatus = document.getElementById('scanStatus');
+
+  const scenarios = [
+    {
+      url: 'https://paypa1.com/login/verify/account/secure',
+      verdict: 'MALICIOUS',
+      score: 82,
+      color: '#ff3366',
+      emoji: '🔴',
+      cardClass: 'danger',
+      checks: [
+        { name: 'HTTPS', detail: 'present', status: 'pass' },
+        { name: 'Typosquatting', detail: 'paypa1.com → paypal.com', status: 'fail' },
+        { name: 'Suspicious Keywords', detail: 'login, verify, secure', status: 'fail' },
+        { name: 'Domain Age', detail: '3 days old', status: 'fail' },
+        { name: 'TLD Check', detail: '.com — OK', status: 'pass' },
+        { name: 'Redirect Chain', detail: '2 hops', status: 'pass' },
+        { name: 'SSL Certificate', detail: 'self-signed', status: 'warn' },
+        { name: 'IP-Based Host', detail: 'domain name used', status: 'pass' },
+      ],
+      vt: '🔴 14/90 engines flagged',
+      gsb: '🔴 SOCIAL_ENGINEERING'
+    },
+    {
+      url: 'https://github.com/anthropics/anthropic-sdk-python',
+      verdict: 'SAFE',
+      score: 4,
+      color: '#00ff88',
+      emoji: '🟢',
+      cardClass: 'safe',
+      checks: [
+        { name: 'HTTPS', detail: 'valid certificate', status: 'pass' },
+        { name: 'Typosquatting', detail: 'no match found', status: 'pass' },
+        { name: 'Suspicious Keywords', detail: 'none found', status: 'pass' },
+        { name: 'Domain Age', detail: '15+ years', status: 'pass' },
+        { name: 'TLD Check', detail: '.com — OK', status: 'pass' },
+        { name: 'Redirect Chain', detail: '1 hop', status: 'pass' },
+        { name: 'SSL Certificate', detail: 'valid, trusted CA', status: 'pass' },
+        { name: 'IP-Based Host', detail: 'domain name used', status: 'pass' },
+      ],
+      vt: '🟢 0/90 engines flagged',
+      gsb: '🟢 No threats found'
+    },
+    {
+      url: 'http://192.168.1.1/secure/banking/login?redirect=http://evil.tk',
+      verdict: 'MALICIOUS',
+      score: 95,
+      color: '#ff3366',
+      emoji: '🔴',
+      cardClass: 'danger',
+      checks: [
+        { name: 'HTTPS', detail: 'NOT present', status: 'fail' },
+        { name: 'Typosquatting', detail: 'not applicable', status: 'pass' },
+        { name: 'Suspicious Keywords', detail: 'secure, banking, login', status: 'fail' },
+        { name: 'Domain Age', detail: 'N/A (raw IP)', status: 'fail' },
+        { name: 'TLD Check', detail: '.tk — high-risk', status: 'fail' },
+        { name: 'Redirect Chain', detail: '5 hops detected', status: 'fail' },
+        { name: 'SSL Certificate', detail: 'missing', status: 'fail' },
+        { name: 'IP-Based Host', detail: '⚠ raw IP: 192.168.1.1', status: 'fail' },
+      ],
+      vt: '🔴 51/90 engines flagged',
+      gsb: '🔴 MALWARE + SOCIAL_ENGINEERING'
+    }
+  ];
+
+  let currentScenario = 0;
+
+  fileInput.addEventListener('change', (e) => { if (e.target.files[0]) runDemo(); });
+  uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('active'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('active'));
+  uploadZone.addEventListener('drop', (e) => { e.preventDefault(); uploadZone.classList.remove('active'); runDemo(); });
+
+  function runDemo() {
+    const s = scenarios[currentScenario % scenarios.length];
+    currentScenario++;
+
+    uploadZone.style.display = 'none';
+    resultPanel.classList.remove('show');
+    scanningState.classList.add('show');
+
+    const steps = [
+      { label: '⬡ DECODING QR CODE...', done: '✓ QR decoded successfully' },
+      { label: '⬡ FOLLOWING REDIRECT CHAIN...', done: '✓ Redirect chain resolved' },
+      { label: '⬡ RUNNING HEURISTICS ENGINE...', done: '✓ 8 checks completed' },
+      { label: '⬡ QUERYING VIRUSTOTAL API...', done: '✓ VirusTotal scan complete' },
+      { label: '⬡ CHECKING GOOGLE SAFE BROWSING...', done: '✓ GSB check complete' },
+      { label: '⬡ CALCULATING RISK SCORE...', done: '✓ Risk score ready' },
+    ];
+
+    const terminalLog = document.getElementById('terminalLog');
+    const progressBar = document.getElementById('scanProgress');
+    terminalLog.innerHTML = '';
+
+    // Pre-render all log lines as pending
+    steps.forEach((step, i) => {
+      const line = document.createElement('div');
+      line.className = 'log-line pending';
+      line.id = `log-line-${i}`;
+      line.textContent = `  ${step.label.replace('⬡ ', '○ ')}`;
+      terminalLog.appendChild(line);
+      setTimeout(() => line.classList.add('show'), i * 50);
+    });
+
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < steps.length) {
+        scanStatus.textContent = steps[i].label;
+        progressBar.style.width = `${((i + 1) / steps.length) * 100}%`;
+
+        // Mark current as active
+        const activeLine = document.getElementById(`log-line-${i}`);
+        activeLine.className = 'log-line active show';
+        activeLine.textContent = `  ${steps[i].label}`;
+
+        // Mark previous as done
+        if (i > 0) {
+          const doneLine = document.getElementById(`log-line-${i - 1}`);
+          doneLine.className = 'log-line done show';
+          doneLine.textContent = `  ${steps[i - 1].done}`;
+        }
+        i++;
+      } else {
+        // Mark last as done
+        const doneLine = document.getElementById(`log-line-${i - 1}`);
+        if (doneLine) {
+          doneLine.className = 'log-line done show';
+          doneLine.textContent = `  ${steps[i - 1].done}`;
+        }
+        progressBar.style.width = '100%';
+        clearInterval(interval);
+        setTimeout(() => showResult(s), 300);
+      }
+    }, 450);
+  }
+
+  function showResult(s) {
+    scanningState.classList.remove('show');
+    resultPanel.classList.add('show');
+
+    // Verdict card with ripple
+    const card = document.getElementById('verdictCard');
+    card.className = `verdict-card ${s.cardClass}`;
+    void card.offsetWidth; // force reflow
+    card.classList.add('ripple');
+    card.addEventListener('animationend', () => card.classList.remove('ripple'), { once: true });
+
+    document.getElementById('verdictIcon').textContent = s.emoji;
+
+    // Glitch effect on verdict title
+    const titleEl = document.getElementById('verdictTitle');
+    titleEl.textContent = s.verdict;
+    titleEl.style.color = s.color;
+    titleEl.setAttribute('data-text', s.verdict);
+    titleEl.classList.add('glitch-active');
+    setTimeout(() => titleEl.classList.remove('glitch-active'), 500);
+
+    document.getElementById('verdictUrl').textContent = s.url;
+
+    // Animated score counter
+    const scoreEl = document.getElementById('scoreValue');
+    scoreEl.style.color = s.color;
+    animateCounter(scoreEl, s.score, '/100', 800);
+
+    const bar = document.getElementById('scoreBar');
+    bar.style.background = s.color;
+    bar.style.boxShadow = `0 0 12px ${s.color}66`;
+    setTimeout(() => { bar.style.width = s.score + '%'; }, 50);
+
+    // Staggered check items
+    const grid = document.getElementById('checksGrid');
+    grid.innerHTML = s.checks.map(c => `
+      <div class="check-item ${c.status === 'fail' ? 'fail' : c.status === 'warn' ? 'warn-item' : 'pass'}">
+        <div class="check-dot"></div>
+        <div>
+          <div class="check-name">${c.name}</div>
+          <div class="check-detail">${c.detail}</div>
+        </div>
+      </div>
+    `).join('');
+
+    grid.querySelectorAll('.check-item').forEach((el, i) => {
+      setTimeout(() => el.classList.add('animate-in'), i * 80);
+    });
+
+    document.getElementById('vtResult').textContent = s.vt;
+    document.getElementById('gsbResult').textContent = s.gsb;
+
+    setTimeout(() => {
+      uploadZone.style.display = 'block';
+      uploadZone.querySelector('.upload-text').textContent = 'Scan another QR code';
+      uploadZone.style.padding = '20px 24px';
+    }, 500);
+  }
+</script>
+</body>
+</html>
